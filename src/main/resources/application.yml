@@ -1,8 +1,8 @@
 spring:
   application:
-    name: @project.artifactId@
-    version: @project.version@
-    description: @project.description@
+    name: ${project.name}
+    version: ${project.version}
+    description: ${project.description}
 
   jackson:
     property-naming-strategy: SNAKE_CASE
