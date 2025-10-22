@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: @project.artifactId@
+    version: @project.version@
+    description: @project.description@
+
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+
+server:
+  port: 9091
+
+springdoc:
+  api-docs:
+    path: /api-docs # JSON
+  swagger-ui:
+    path: /swagger-ui.html # UI visual
+    operations-sorter: method
+    tags-sorter: alpha
+    filter: true
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json
