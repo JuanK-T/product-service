@@ -8,11 +8,11 @@ public record ProductImageUrl(String value) {
     private static final String DEFAULT_IMAGE = "https://st5.depositphotos.com/90358332/74974/v/450/depositphotos_749740000-stock-illustration-photo-thumbnail-graphic-element-found.jpg";
 
     public ProductImageUrl {
-        if (value != null && value.isBlank()) {
+        if (value == null || value.isBlank()) {
             value = DEFAULT_IMAGE;
         }
 
-        if (value != null && !isValidUrl(value)) {
+        if (!isValidUrl(value)) {
             throw new InvalidImageUrlException(value);
         }
     }
