@@ -73,7 +73,9 @@ class ProductImageUrlTest {
             "invalid-url",                            // Invalid string
             "https://",                               // No host
             "https:/example.com",                     // Single slash
-            "https:///example.com"                    // Triple slash
+            "https:///example.com",                    // Triple slash
+            "https://exa mple.com/image.jpg",        // ❗ Fuerza URISyntaxException (espacio en host)
+            "https://example.com/image with space.jpg" // ❗ Fuerza URISyntaxException (espacio en path)
     })
     @DisplayName("Dado URLs inválidas o con protocolo no HTTPS, cuando se crea ProductImageUrl, entonces debe lanzar InvalidImageUrlException")
     void givenInvalidUrls_whenCreatingProductImageUrl_thenShouldThrowInvalidImageUrlException(String invalidUrl) {

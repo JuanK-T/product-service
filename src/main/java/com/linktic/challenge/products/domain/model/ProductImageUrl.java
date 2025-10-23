@@ -3,6 +3,7 @@ package com.linktic.challenge.products.domain.model;
 import com.linktic.challenge.products.domain.exception.valueobject.InvalidImageUrlException;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 
 public record ProductImageUrl(String value) {
     private static final String DEFAULT_IMAGE = "https://st5.depositphotos.com/90358332/74974/v/450/depositphotos_749740000-stock-illustration-photo-thumbnail-graphic-element-found.jpg";
@@ -20,10 +21,10 @@ public record ProductImageUrl(String value) {
     private boolean isValidUrl(String url) {
         try {
             URI uri = new URI(url);
-            return "https".equals(uri.getScheme()) &&
-                    uri.getHost() != null &&
-                    !uri.getHost().trim().isEmpty();
-        } catch (Exception e) {
+            if (!"https".equals(uri.getScheme())) return false;
+
+            return uri.getHost() != null;
+        } catch (URISyntaxException e) {
             return false;
         }
     }
