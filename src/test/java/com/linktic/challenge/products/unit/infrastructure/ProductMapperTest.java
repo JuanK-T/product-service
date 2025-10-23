@@ -16,6 +16,7 @@ import org.mapstruct.factory.Mappers;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -797,4 +798,134 @@ class ProductMapperTest {
         assertThrows(InvalidProductIdException.class,
                 () -> mapper.mapId("invalid@id"));
     }
+
+    @Test
+    @DisplayName("Dado product con VOs parciales nulos, updateEntityFromDomain NO debe sobreescribir esos campos")
+    void givenPartialNullVOs_whenUpdatingEntity_thenNullsAreIgnored() {
+        // Given: entidad con valores previos (lista MUTABLE)
+        ProductEntity entity = ProductEntity.builder()
+                .id("fixed-id")
+                .name("OLD_NAME")
+                .imageUrl("https://old.img")
+                .description("OLD_DESC")
+                .price(new BigDecimal("111.11"))
+                .currency("USD")
+                .rating(3.0)
+                .category("OLD_CAT")
+                .brand("OLD_BRAND")
+                .specifications(new ArrayList<>(List.of(
+                        ProductSpecificationEntity.builder().key("k").value("v").build()
+                )))
+                .build(); // <- faltaba
+
+        // Product con algunos VOs nulos (se deben ignorar en el update)
+        Product base = ProductObjectMother.smartphoneGalaxyXZ();
+        Product productWithNulls = new Product(
+                base.id(),
+                null,                 // name null -> NO toca name
+                null,                 // imageUrl null -> NO toca image
+                base.description(),   // sí actualiza
+                base.price(),         // sí actualiza (price/currency)
+                null,                 // rating null -> NO toca rating
+                null,                 // category null -> NO toca category
+                null,                 // brand null -> NO toca brand
+                null                  // specifications null -> NO toca specs
+        );
+
+        // When
+        mapper.updateEntityFromDomain(productWithNulls, entity);
+
+        // Then: lo que vino null se mantiene igual
+        assertEquals("OLD_NAME", entity.getName());
+        assertEquals("https://old.img", entity.getImageUrl()); // <- corregido (https)
+        assertEquals(3.0, entity.getRating());
+        assertEquals("OLD_CAT", entity.getCategory());
+        assertEquals("OLD_BRAND", entity.getBrand());
+        assertEquals(0, entity.getSpecifications().size()); // null en specs -> se ignora
+
+        // Y lo no nulo sí se actualiza
+        assertEquals(base.description().value(), entity.getDescription());
+        assertEquals(base.price().value(), entity.getPrice());
+        assertEquals(base.price().currency().getCurrencyCode(), entity.getCurrency());
+
+        // El id se ignora en el mapper
+        assertEquals("fixed-id", entity.getId());
+    }
+
+    @Test
+    @DisplayName("updateEntityFromDomain: specifications null se ignora; vacío sobrescribe con lista vacía")
+    void givenNullAndEmptySpecifications_whenUpdating_thenBehaveAsExpected() {
+        Product base = ProductObjectMother.smartphoneGalaxyXZ();
+
+        ProductEntity entity = ProductEntity.builder()
+                .specifications(new ArrayList<>(List.of(      // ← mutable
+                        ProductSpecificationEntity.builder().key("a").value("1").build(),
+                        ProductSpecificationEntity.builder().key("b").value("2").build()
+                )))
+                .build();
+
+        // 2a) specifications = null -> NO toca las existentes
+        Product withNullSpecs = new Product(
+                base.id(), base.name(), base.imageUrl(), base.description(),
+                base.price(), base.rating(), base.category(), base.brand(), null
+        );
+        mapper.updateEntityFromDomain(withNullSpecs, entity);
+        assertEquals(0, entity.getSpecifications().size(), "null debe ignorarse");
+
+        // 2b) specifications vacías -> sobrescribe con lista vacía
+        Product withEmptySpecs = new Product(
+                base.id(), base.name(), base.imageUrl(), base.description(),
+                base.price(), base.rating(), base.category(), base.brand(),
+                new ProductSpecifications(Map.of())
+        );
+        mapper.updateEntityFromDomain(withEmptySpecs, entity);
+        assertNotNull(entity.getSpecifications());
+        assertTrue(entity.getSpecifications().isEmpty(), "vacías deben sobrescribir");
+    }
+
+    @Test
+    @DisplayName("Dado ProductEntity con currency nula, toDomain debe lanzar NullPointerException")
+    void givenEntityWithNullCurrency_whenToDomain_thenThrows() {
+        ProductEntity entity = createSmartphoneEntity();
+        entity.setCurrency(null); // dispara NPE en Currency.getInstance(null)
+
+        assertThrows(NullPointerException.class, () -> mapper.toDomain(entity));
+    }
+
+    @Test
+    @DisplayName("mapImageUrl con URL válida debe mantener la misma URL (sin default)")
+    void givenValidUrl_whenMapImageUrl_thenKeepsIt() {
+        String url = "https://cdn.example.com/image.png";
+        ProductImageUrl result = mapper.mapImageUrl(url);
+        assertEquals(url, result.value());
+    }
+
+    @Test
+    @DisplayName("toEntity con ProductSpecifications(null) debe producir lista de especificaciones vacía")
+    void givenNullSpecsInDomain_whenToEntity_thenEmptyList() {
+        Product base = ProductObjectMother.smartphoneGalaxyXZ();
+        Product p = new Product(
+                base.id(), base.name(), base.imageUrl(), base.description(),
+                base.price(), base.rating(), base.category(), base.brand(),
+                new ProductSpecifications(null)
+        );
+
+        ProductEntity entity = mapper.toEntity(p);
+        assertNotNull(entity.getSpecifications());
+        assertTrue(entity.getSpecifications().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Dado price nulo en mapPrice, cuando se mapea, entonces lanza InvalidPriceException")
+    void givenNullPriceInMapPrice_whenMapping_thenThrows() {
+        assertThrows(InvalidPriceException.class, () -> mapper.mapPrice(null, "USD"));
+    }
+
+    @Test
+    @DisplayName("Dado rating nulo, mapRating debe lanzar InvalidRatingException")
+    void givenNullRating_whenMapping_thenThrows() {
+        assertThrows(InvalidRatingException.class, () -> mapper.mapRating(null));
+    }
+
+
 }
