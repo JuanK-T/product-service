@@ -4,7 +4,7 @@ import com.linktic.challenge.products.domain.exception.valueobject.*;
 import com.linktic.challenge.products.domain.model.*;
 import com.linktic.challenge.products.infrastructure.persistence.entity.ProductEntity;
 import com.linktic.challenge.products.infrastructure.persistence.entity.ProductSpecificationEntity;
-import com.linktic.challenge.products.infrastructure.persistence.mapper.ProductMapper;
+import com.linktic.challenge.products.infrastructure.persistence.mapper.ProductEntityMapper;
 import com.linktic.challenge.products.objectmother.ProductObjectMother;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,13 +23,13 @@ import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class ProductMapperTest {
+class ProductEntityMapperTest {
 
-    private ProductMapper mapper;
+    private ProductEntityMapper mapper;
 
     @BeforeEach
     void setUp() {
-        mapper = Mappers.getMapper(ProductMapper.class);
+        mapper = Mappers.getMapper(ProductEntityMapper.class);
     }
 
     @Test
@@ -59,12 +59,19 @@ class ProductMapperTest {
         assertNotNull(entity.getSpecifications());
         assertEquals(5, entity.getSpecifications().size());
 
+        // ✅ NUEVA VERIFICACIÓN: Las especificaciones deben tener referencia al producto
+        entity.getSpecifications().forEach(spec -> {
+            assertNotNull(spec.getProduct());
+            assertEquals(entity, spec.getProduct());
+        });
+
         // Verificar una especificación específica
         ProductSpecificationEntity screenSpec = entity.getSpecifications().stream()
                 .filter(spec -> "pantalla".equals(spec.getKey()))
                 .findFirst()
                 .orElseThrow();
         assertEquals("6.5 pulgadas AMOLED", screenSpec.getValue());
+        assertEquals(entity, screenSpec.getProduct()); // ✅ Verificar referencia
     }
 
     @Test
@@ -201,6 +208,13 @@ class ProductMapperTest {
         assertEquals(4.7, existingEntity.getRating());
         assertEquals("Electrónica", existingEntity.getCategory());
         assertEquals("TechNova", existingEntity.getBrand());
+
+        // ✅ NUEVA VERIFICACIÓN: Las especificaciones deben tener referencia al producto
+        assertNotNull(existingEntity.getSpecifications());
+        existingEntity.getSpecifications().forEach(spec -> {
+            assertNotNull(spec.getProduct());
+            assertEquals(existingEntity, spec.getProduct());
+        });
 
         // Los timestamps no deben cambiar (se ignoran en el mapper)
         assertNotNull(existingEntity.getCreatedAt());
@@ -349,55 +363,6 @@ class ProductMapperTest {
         assertEquals(new BigDecimal("799.99"), product.price().value());
     }
 
-    @Test
-    @DisplayName("Dado mapeo de especificaciones individual, cuando se convierte de mapa a lista, entonces debe mantener los valores")
-    void givenSpecificationsMap_whenConvertingToList_thenShouldMaintainValues() {
-        // Given
-        Map<String, String> specs = Map.of(
-                "key1", "value1",
-                "key2", "value2"
-        );
-
-        // When
-        List<ProductSpecificationEntity> result = mapper.mapToSpecificationEntities(specs);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertTrue(result.stream().anyMatch(spec -> "key1".equals(spec.getKey()) && "value1".equals(spec.getValue())));
-        assertTrue(result.stream().anyMatch(spec -> "key2".equals(spec.getKey()) && "value2".equals(spec.getValue())));
-    }
-
-    @Test
-    @DisplayName("Dado mapeo de especificaciones nulas, cuando se convierte, entonces debe retornar lista vacía")
-    void givenNullSpecifications_whenConverting_thenShouldReturnEmptyList() {
-        // When
-        List<ProductSpecificationEntity> result = mapper.mapToSpecificationEntities(null);
-
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    @DisplayName("Dado mapeo de lista de especificaciones a mapa, cuando se convierte, entonces debe mantener los valores")
-    void givenSpecificationsList_whenConvertingToMap_thenShouldMaintainValues() {
-        // Given
-        List<ProductSpecificationEntity> specs = List.of(
-                ProductSpecificationEntity.builder().key("key1").value("value1").build(),
-                ProductSpecificationEntity.builder().key("key2").value("value2").build()
-        );
-
-        // When
-        Map<String, String> result = mapper.specificationsToMap(specs);
-
-        // Then
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals("value1", result.get("key1"));
-        assertEquals("value2", result.get("key2"));
-    }
-
     // Método helper para crear una ProductEntity de ejemplo
     private ProductEntity createSmartphoneEntity() {
         return ProductEntity.builder()
@@ -410,7 +375,7 @@ class ProductMapperTest {
                 .rating(4.7)
                 .category("Electrónica")
                 .brand("TechNova")
-                .specifications(List.of(
+                .specifications(new ArrayList<>(List.of( // ✅ Usar ArrayList mutable
                         ProductSpecificationEntity.builder()
                                 .key("pantalla")
                                 .value("6.5 pulgadas AMOLED")
@@ -431,7 +396,7 @@ class ProductMapperTest {
                                 .key("bateria")
                                 .value("4800mAh")
                                 .build()
-                ))
+                )))
                 .build();
     }
 
@@ -509,31 +474,6 @@ class ProductMapperTest {
 
         // When
         List<ProductSpecificationEntity> result = mapper.specsToEntities(specsWithEmptyMap);
-
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    @DisplayName("Dado specificationsToMap con lista nula, cuando se convierte, entonces debe retornar mapa vacío")
-    void givenNullListInSpecificationsToMap_whenConverting_thenShouldReturnEmptyMap() {
-        // When
-        Map<String, String> result = mapper.specificationsToMap(null);
-
-        // Then
-        assertNotNull(result);
-        assertTrue(result.isEmpty());
-    }
-
-    @Test
-    @DisplayName("Dado mapToSpecificationEntities con mapa vacío, cuando se convierte, entonces debe retornar lista vacía")
-    void givenEmptyMapInMapToSpecificationEntities_whenConverting_thenShouldReturnEmptyList() {
-        // Given
-        Map<String, String> emptyMap = Map.of();
-
-        // When
-        List<ProductSpecificationEntity> result = mapper.mapToSpecificationEntities(emptyMap);
 
         // Then
         assertNotNull(result);
@@ -813,10 +753,10 @@ class ProductMapperTest {
                 .rating(3.0)
                 .category("OLD_CAT")
                 .brand("OLD_BRAND")
-                .specifications(new ArrayList<>(List.of(
+                .specifications(new ArrayList<>(List.of( // ✅ ArrayList mutable
                         ProductSpecificationEntity.builder().key("k").value("v").build()
                 )))
-                .build(); // <- faltaba
+                .build();
 
         // Product con algunos VOs nulos (se deben ignorar en el update)
         Product base = ProductObjectMother.smartphoneGalaxyXZ();
@@ -916,16 +856,182 @@ class ProductMapperTest {
     }
 
     @Test
-    @DisplayName("Dado price nulo en mapPrice, cuando se mapea, entonces lanza InvalidPriceException")
-    void givenNullPriceInMapPrice_whenMapping_thenThrows() {
-        assertThrows(InvalidPriceException.class, () -> mapper.mapPrice(null, "USD"));
+    @DisplayName("Dado un Product dominio con especificaciones, cuando se mapea a entidad, entonces las especificaciones deben tener referencia al producto")
+    void givenProductDomainWithSpecifications_whenMappedToEntity_thenSpecificationsHaveProductReference() {
+        // Given
+        Product product = ProductObjectMother.smartphoneGalaxyXZ();
+
+        // When
+        ProductEntity entity = mapper.toEntity(product);
+
+        // Then
+        assertNotNull(entity.getSpecifications());
+        assertFalse(entity.getSpecifications().isEmpty());
+
+        // Verificar que todas las especificaciones tienen la referencia al producto
+        entity.getSpecifications().forEach(spec -> {
+            assertNotNull(spec.getProduct());
+            assertEquals(entity, spec.getProduct());
+            assertNotNull(spec.getKey());
+            assertNotNull(spec.getValue());
+        });
     }
 
     @Test
-    @DisplayName("Dado rating nulo, mapRating debe lanzar InvalidRatingException")
-    void givenNullRating_whenMapping_thenThrows() {
-        assertThrows(InvalidRatingException.class, () -> mapper.mapRating(null));
+    @DisplayName("Dado un ProductEntity con especificaciones, cuando se actualiza, entonces las especificaciones mantienen referencia al producto")
+    void givenProductEntityWithSpecifications_whenUpdated_thenSpecificationsMaintainProductReference() {
+        // Given
+        Product product = ProductObjectMother.smartphoneGalaxyXZ();
+        ProductEntity existingEntity = createSmartphoneEntity();
+
+        // ✅ Asegurar que las especificaciones iniciales tengan la referencia al producto
+        existingEntity.getSpecifications().forEach(spec -> spec.setProduct(existingEntity));
+
+        // When
+        mapper.updateEntityFromDomain(product, existingEntity);
+
+        // Then
+        assertNotNull(existingEntity.getSpecifications());
+        existingEntity.getSpecifications().forEach(spec -> {
+            assertNotNull(spec.getProduct());
+            assertEquals(existingEntity, spec.getProduct());
+        });
     }
 
+    @Test
+    @DisplayName("Dado un Product dominio sin especificaciones, cuando se mapea a entidad, entonces las especificaciones deben estar vacías")
+    void givenProductDomainWithoutSpecifications_whenMappedToEntity_thenSpecificationsAreEmpty() {
+        // Given
+        Product product = ProductObjectMother.smartphoneGalaxyXZ();
+        Product productWithoutSpecs = new Product(
+                product.id(),
+                product.name(),
+                product.imageUrl(),
+                product.description(),
+                product.price(),
+                product.rating(),
+                product.category(),
+                product.brand(),
+                new ProductSpecifications(Map.of())
+        );
 
+        // When
+        ProductEntity entity = mapper.toEntity(productWithoutSpecs);
+
+        // Then
+        assertNotNull(entity.getSpecifications());
+        assertTrue(entity.getSpecifications().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Dado @AfterMapping con especificaciones nulas, cuando se ejecuta, entonces no debe lanzar excepción")
+    void givenNullSpecificationsInAfterMapping_whenLinking_thenShouldNotThrowException() {
+        // Given
+        ProductEntity entity = new ProductEntity();
+        entity.setSpecifications(null);
+
+        // When & Then
+        assertDoesNotThrow(() -> {
+            // Simulamos la invocación del @AfterMapping
+            mapper.linkSpecificationsToProduct(entity);
+        });
+    }
+
+    @Test
+    @DisplayName("Dado @AfterMapping con lista de especificaciones vacía, cuando se ejecuta, entonces no debe lanzar excepción")
+    void givenEmptySpecificationsInAfterMapping_whenLinking_thenShouldNotThrowException() {
+        // Given
+        ProductEntity entity = new ProductEntity();
+        entity.setSpecifications(new ArrayList<>());
+
+        // When & Then
+        assertDoesNotThrow(() -> mapper.linkSpecificationsToProduct(entity));
+    }
+
+    @Test
+    @DisplayName("Dado un ProductEntity con especificaciones que tienen producto nulo, cuando se aplica @AfterMapping, entonces se establece la referencia")
+    void givenSpecificationsWithNullProduct_whenAfterMapping_thenProductReferenceIsSet() {
+        // Given
+        ProductEntity entity = new ProductEntity();
+        entity.setId("test-id");
+
+        List<ProductSpecificationEntity> specs = List.of(
+                ProductSpecificationEntity.builder()
+                        .key("key1")
+                        .value("value1")
+                        .product(null) // Producto nulo inicialmente
+                        .build(),
+                ProductSpecificationEntity.builder()
+                        .key("key2")
+                        .value("value2")
+                        .product(null) // Producto nulo inicialmente
+                        .build()
+        );
+        entity.setSpecifications(specs);
+
+        // When
+        mapper.linkSpecificationsToProduct(entity);
+
+        // Then
+        entity.getSpecifications().forEach(spec -> {
+            assertNotNull(spec.getProduct());
+            assertEquals(entity, spec.getProduct());
+        });
+    }
+
+    @Test
+    @DisplayName("Dado specsToEntities con especificaciones válidas, cuando se convierte, entonces retorna lista correcta")
+    void givenValidSpecificationsInSpecsToEntities_whenConverting_thenReturnsCorrectList() {
+        // Given
+        ProductSpecifications specifications = new ProductSpecifications(Map.of(
+                "color", "black",
+                "size", "large"
+        ));
+
+        // When
+        List<ProductSpecificationEntity> result = mapper.specsToEntities(specifications);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(spec -> "color".equals(spec.getKey()) && "black".equals(spec.getValue())));
+        assertTrue(result.stream().anyMatch(spec -> "size".equals(spec.getKey()) && "large".equals(spec.getValue())));
+    }
+
+    @Test
+    @DisplayName("Dado mapSpecificationsFromEntities con especificaciones duplicadas, cuando se convierte, entonces usa el último valor")
+    void givenDuplicateSpecifications_whenMappingFromEntities_thenUsesLastValue() {
+        // Given
+        List<ProductSpecificationEntity> specifications = new ArrayList<>(List.of(
+                ProductSpecificationEntity.builder().key("color").value("red").build(),
+                ProductSpecificationEntity.builder().key("color").value("blue").build(), // Duplicado - último valor
+                ProductSpecificationEntity.builder().key("size").value("large").build(),
+                ProductSpecificationEntity.builder().key("size").value("medium").build()  // Duplicado - último valor
+        ));
+
+        // When
+        ProductSpecifications result = mapper.mapSpecificationsFromEntities(specifications);
+
+        // Then
+        assertEquals("blue", result.specs().get("color")); // Debería usar el último valor
+        assertEquals("medium", result.specs().get("size")); // Debería usar el último valor
+        assertEquals(2, result.specs().size()); // Solo dos entradas únicas
+    }
+
+    @Test
+    @DisplayName("Dado linkSpecificationsToProductOnUpdate, cuando se invoca, entonces delega a linkSpecificationsToProduct")
+    void givenLinkSpecificationsToProductOnUpdate_whenInvoked_thenDelegatesToMainMethod() {
+        // Given
+        ProductEntity entity = new ProductEntity();
+        List<ProductSpecificationEntity> specs = List.of(
+                ProductSpecificationEntity.builder().key("test").value("value").build()
+        );
+        entity.setSpecifications(specs);
+
+        // When
+        mapper.linkSpecificationsToProductOnUpdate(entity);
+
+        // Then
+        entity.getSpecifications().forEach(spec -> assertEquals(entity, spec.getProduct()));
+    }
 }

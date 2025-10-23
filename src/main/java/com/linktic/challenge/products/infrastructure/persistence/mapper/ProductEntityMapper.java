@@ -6,10 +6,7 @@ import com.linktic.challenge.products.infrastructure.persistence.entity.ProductS
 import org.mapstruct.*;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Currency;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Mapper(
@@ -97,7 +94,9 @@ public interface ProductEntityMapper {
         Map<String, String> specsMap = specifications.stream()
                 .collect(Collectors.toMap(
                         ProductSpecificationEntity::getKey,
-                        ProductSpecificationEntity::getValue
+                        ProductSpecificationEntity::getValue,
+                        (existing, replacement) -> replacement,
+                        LinkedHashMap::new
                 ));
         return new ProductSpecifications(specsMap);
     }
