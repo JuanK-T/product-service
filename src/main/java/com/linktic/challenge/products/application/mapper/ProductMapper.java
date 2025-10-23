@@ -32,19 +32,19 @@ public class ProductMapper {
     public Product toDomain(CreateProductDto createProductDto) {
         return new Product(
                 new ProductId(UUID.randomUUID().toString()),
-                new ProductName(createProductDto.getName()),
-                new ProductImageUrl(createProductDto.getImageUrl()),
-                new ProductDescription(createProductDto.getDescription()),
+                new ProductName(createProductDto.name()),
+                new ProductImageUrl(createProductDto.imageUrl()),
+                new ProductDescription(createProductDto.description()),
                 new ProductPrice(
-                        createProductDto.getPrice(),
-                        Currency.getInstance(Objects.requireNonNull(createProductDto.getCurrency(), "currency required"))
+                        createProductDto.price(),
+                        Currency.getInstance(Objects.requireNonNull(createProductDto.currency(), "currency required"))
                 ),
-                createProductDto.getRating() != null ? ProductRating.of(createProductDto.getRating()) : null,
-                new ProductCategory(createProductDto.getCategory()),
-                new ProductBrand(createProductDto.getBrand()),
+                createProductDto.rating() != null ? ProductRating.of(createProductDto.rating()) : null,
+                new ProductCategory(createProductDto.category()),
+                new ProductBrand(createProductDto.brand()),
                 new ProductSpecifications(
-                        createProductDto.getSpecifications() != null ?
-                                createProductDto.getSpecifications() : Map.of()
+                        createProductDto.specifications() != null ?
+                                createProductDto.specifications() : Map.of()
                 )
         );
     }
