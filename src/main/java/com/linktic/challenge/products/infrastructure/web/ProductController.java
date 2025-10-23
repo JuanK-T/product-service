@@ -7,13 +7,14 @@ import com.linktic.challenge.products.application.mapper.ProductMapper;
 import com.linktic.challenge.products.application.port.in.ProductManagementUseCase;
 import com.linktic.challenge.products.application.port.in.ProductQueryUseCase;
 import com.linktic.challenge.products.domain.model.Product;
+import com.linktic.challenge.shared.response.StandardResponse;
+import com.linktic.challenge.shared.util.StandardResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,14 +29,14 @@ public class ProductController {
     private final ProductMapper productMapper;
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProductDto> getProductById(@PathVariable String id) {
+    public StandardResponse<ProductDto> getProductById(@PathVariable String id) {
         Product product = productQueryUseCase.findById(id);
         ProductDto productDto = productMapper.toDto(product);
-        return ResponseEntity.ok(productDto);
+        return StandardResponses.retrieved(productDto, "Producto encontrado exitosamente");
     }
 
     @GetMapping
-    public ResponseEntity<PageResponse<ProductDto>> getAllProducts(
+    public StandardResponse<PageResponse<ProductDto>> getAllProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(defaultValue = "name") String sortBy,
@@ -51,28 +52,28 @@ public class ProductController {
         Page<ProductDto> productDtos = products.map(productMapper::toDto);
         PageResponse<ProductDto> response = PageResponse.of(productDtos);
 
-        return ResponseEntity.ok(response);
+        return StandardResponses.retrieved(response, "Lista de productos obtenida exitosamente");
     }
 
     @PostMapping
-    public ResponseEntity<ProductDto> createProduct(@RequestBody @Validated CreateProductDto createProductDto) {
+    public StandardResponse<ProductDto> createProduct(@RequestBody @Validated CreateProductDto createProductDto) {
         Product product = productMapper.toDomain(createProductDto);
         Product createdProduct = productManagementUseCase.createProduct(product);
         ProductDto createdProductDto = productMapper.toDto(createdProduct);
-        return ResponseEntity.ok(createdProductDto);
+        return StandardResponses.created(createdProductDto, "Producto creado exitosamente");
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ProductDto> updateProduct(@PathVariable String id, @RequestBody @Validated UpdateProductDto updateProductDto) {
+    public StandardResponse<ProductDto> updateProduct(@PathVariable String id, @RequestBody @Validated UpdateProductDto updateProductDto) {
         Product product = productMapper.toDomain(id, updateProductDto);
         Product updatedProduct = productManagementUseCase.updateProduct(product);
         ProductDto updatedProductDto = productMapper.toDto(updatedProduct);
-        return ResponseEntity.ok(updatedProductDto);
+        return StandardResponses.updated(updatedProductDto, "Producto actualizado exitosamente");
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduct(@PathVariable String id) {
+    public StandardResponse<String> deleteProduct(@PathVariable String id) {
         productManagementUseCase.deleteProduct(id);
-        return ResponseEntity.noContent().build();
+        return StandardResponses.deleted("Producto eliminado exitosamente", "Producto eliminado del catálogo");
     }
 }
