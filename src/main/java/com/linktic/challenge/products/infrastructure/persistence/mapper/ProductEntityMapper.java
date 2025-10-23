@@ -6,6 +6,7 @@ import com.linktic.challenge.products.infrastructure.persistence.entity.ProductS
 import org.mapstruct.*;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
 import java.util.Map;
@@ -14,10 +15,9 @@ import java.util.stream.Collectors;
 @Mapper(
         componentModel = "spring",
         unmappedTargetPolicy = ReportingPolicy.IGNORE,
-        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
-        collectionMappingStrategy = CollectionMappingStrategy.SETTER_PREFERRED
+        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
 )
-public interface ProductMapper {
+public interface ProductEntityMapper {
 
     // Domain to Entity
     @Mapping(target = "id", source = "id.value")
@@ -46,7 +46,7 @@ public interface ProductMapper {
     @Mapping(target = "specifications", expression = "java(mapSpecificationsFromEntities(entity.getSpecifications()))")
     Product toDomain(ProductEntity entity);
 
-    // Update entity from domain (useful for updates)
+    // Update entity from domain
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "name", source = "name.value")
     @Mapping(target = "imageUrl", source = "imageUrl.value")
@@ -65,7 +65,7 @@ public interface ProductMapper {
     @Named("specsToEntities")
     default List<ProductSpecificationEntity> specsToEntities(ProductSpecifications specifications) {
         if (specifications == null || specifications.specs() == null || specifications.specs().isEmpty()) {
-            return List.of();
+            return new ArrayList<>();
         }
         return specifications.specs().entrySet().stream()
                 .map(entry -> ProductSpecificationEntity.builder()
@@ -73,6 +73,20 @@ public interface ProductMapper {
                         .value(entry.getValue())
                         .build())
                 .toList();
+    }
+
+    // ✅ AFTER MAPPING QUE SÍ FUNCIONA - usando @Context
+    @AfterMapping
+    default void linkSpecificationsToProduct(@MappingTarget ProductEntity productEntity) {
+        if (productEntity.getSpecifications() != null) {
+            productEntity.getSpecifications().forEach(spec -> spec.setProduct(productEntity));
+        }
+    }
+
+    // ✅ AFTER MAPPING para update también
+    @AfterMapping
+    default void linkSpecificationsToProductOnUpdate(@MappingTarget ProductEntity productEntity) {
+        linkSpecificationsToProduct(productEntity);
     }
 
     // Method for specifications conversion (Entity -> Domain)
@@ -86,30 +100,6 @@ public interface ProductMapper {
                         ProductSpecificationEntity::getValue
                 ));
         return new ProductSpecifications(specsMap);
-    }
-
-    // Specification mappings for direct conversion (if needed elsewhere)
-    default Map<String, String> specificationsToMap(List<ProductSpecificationEntity> specifications) {
-        if (specifications == null) {
-            return Map.of();
-        }
-        return specifications.stream()
-                .collect(Collectors.toMap(
-                        ProductSpecificationEntity::getKey,
-                        ProductSpecificationEntity::getValue
-                ));
-    }
-
-    default List<ProductSpecificationEntity> mapToSpecificationEntities(Map<String, String> specs) {
-        if (specs == null || specs.isEmpty()) {
-            return List.of();
-        }
-        return specs.entrySet().stream()
-                .map(entry -> ProductSpecificationEntity.builder()
-                        .key(entry.getKey())
-                        .value(entry.getValue())
-                        .build())
-                .toList();
     }
 
     // Value object mapping methods
