@@ -42,10 +42,21 @@ dependencies {
     implementation("org.apache.commons:commons-lang3:3.19.0")
     implementation("org.apache.commons:commons-compress:1.28.0")
 
+    // ✅ MapStruct dependencies
+    implementation 'org.mapstruct:mapstruct:1.6.3'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
+
     compileOnly 'org.projectlombok:lombok'
     runtimeOnly 'org.postgresql:postgresql'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
     annotationProcessor 'org.projectlombok:lombok'
+
+    // ✅ Si usas Lombok con MapStruct (importante para integración)
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+
+    // ✅ Flyway para migraciones de base de datos
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
 
     // ✅ Dependencias de testing
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -78,6 +89,13 @@ tasks.jacocoTestReport {
         xml.required = true // ✅ Requerido para Sonar
         html.required = true
     }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs = [
+            '-Amapstruct.suppressGeneratorTimestamp=true',
+            '-Amapstruct.defaultComponentModel=spring' // Para inyección de dependencias con Spring
+    ]
 }
 
 // ✅ Configuración de Sonar (opcional - ajusta según tu necesidad)
