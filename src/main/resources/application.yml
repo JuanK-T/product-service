@@ -4,9 +4,6 @@ spring:
     version: ${project.version}
     description: ${project.description}
 
-  jackson:
-    property-naming-strategy: SNAKE_CASE
-
   datasource:
     url: jdbc:postgresql://localhost:5432/products_db
     username: postgres

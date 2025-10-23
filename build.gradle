@@ -94,7 +94,8 @@ tasks.jacocoTestReport {
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs = [
             '-Amapstruct.suppressGeneratorTimestamp=true',
-            '-Amapstruct.defaultComponentModel=spring' // Para inyección de dependencias con Spring
+            '-Amapstruct.defaultComponentModel=spring', // Para inyección de dependencias con Spring
+            '-parameters'
     ]
 }
 
