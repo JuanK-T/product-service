@@ -1,5 +1,6 @@
 package com.linktic.challenge.products.infrastructure.adapter;
 
+import com.linktic.challenge.products.domain.exception.entity.ProductAlreadyExistsException;
 import com.linktic.challenge.products.domain.exception.entity.ProductNotFoundException;
 import com.linktic.challenge.products.domain.model.Product;
 import com.linktic.challenge.products.domain.repository.ProductRepository;
@@ -33,6 +34,14 @@ public class ProductRepositoryAdapter implements ProductRepository {
 
     @Override
     public Product save(Product product) {
+        // ✅ Extraer el valor del Value Object ProductName
+        String productNameValue = product.name().value();
+
+        // Validar que no exista un producto con el mismo nombre
+        if (productJpaRepository.existsByName(productNameValue)) {
+            throw new ProductAlreadyExistsException(productNameValue);
+        }
+
         ProductEntity entity = productMapper.toEntity(product);
         ProductEntity savedEntity = productJpaRepository.save(entity);
         return productMapper.toDomain(savedEntity);
@@ -40,16 +49,25 @@ public class ProductRepositoryAdapter implements ProductRepository {
 
     @Override
     public Product update(Product product) {
-        // Verificar si el producto existe
-        if (!productJpaRepository.existsById(product.id().value())) {
-            throw new ProductNotFoundException("Product not found with id: " + product.id().value());
+        // Validar primero que el ID no sea nulo
+        if (product.id() == null) {
+            throw new ProductNotFoundException("null");
         }
 
-        // Buscar la entidad existente
-        ProductEntity existingEntity = productJpaRepository.findById(product.id().value())
-                .orElseThrow(() -> new ProductNotFoundException("Product not found with id: " + product.id().value()));
+        String productId = product.id().value();
+        String productNameValue = product.name().value(); // ✅ Extraer valor
 
-        // Actualizar la entidad existente con los nuevos datos
+        // Buscar directamente la entidad existente
+        ProductEntity existingEntity = productJpaRepository.findById(productId)
+                .orElseThrow(() -> new ProductNotFoundException(productId));
+
+        // Validar que el nuevo nombre no exista en otros productos
+        if (!existingEntity.getName().equals(productNameValue) &&
+                productJpaRepository.existsByNameAndIdNot(productNameValue, productId)) {
+            throw new ProductAlreadyExistsException(productNameValue); // ✅ Pasar String
+        }
+
+        // Actualizar la entidad existente
         productMapper.updateEntityFromDomain(product, existingEntity);
 
         // Guardar la entidad actualizada
@@ -60,7 +78,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
     @Override
     public void deleteById(String id) {
         if (!productJpaRepository.existsById(id)) {
-            throw new ProductNotFoundException("Product not found with id: " + id);
+            throw new ProductNotFoundException(id);
         }
         productJpaRepository.deleteById(id);
     }

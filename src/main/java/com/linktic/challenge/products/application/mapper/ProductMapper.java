@@ -3,6 +3,7 @@ package com.linktic.challenge.products.application.mapper;
 import com.linktic.challenge.products.application.dto.CreateProductDto;
 import com.linktic.challenge.products.application.dto.ProductDto;
 import com.linktic.challenge.products.application.dto.UpdateProductDto;
+import com.linktic.challenge.products.domain.exception.mapper.ProductMapperException;
 import com.linktic.challenge.products.domain.model.*;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,10 @@ import java.util.UUID;
 public class ProductMapper {
 
     public ProductDto toDto(Product product) {
+        if (product == null) {
+            return null;
+        }
+
         return new ProductDto(
                 product.id().value(),
                 product.name().value(),
@@ -30,6 +35,10 @@ public class ProductMapper {
     }
 
     public Product toDomain(CreateProductDto createProductDto) {
+        if (createProductDto == null) {
+            throw new ProductMapperException("CreateProductDto cannot be null");
+        }
+
         return new Product(
                 new ProductId(UUID.randomUUID().toString()),
                 new ProductName(createProductDto.name()),
@@ -50,6 +59,10 @@ public class ProductMapper {
     }
 
     public Product toDomain(String id, UpdateProductDto updateProductDto) {
+        if (updateProductDto == null) {
+            throw new ProductMapperException("UpdateProductDto cannot be null");
+        }
+
         return new Product(
                 new ProductId(id), // ID del path, no del DTO
                 new ProductName(updateProductDto.name()),

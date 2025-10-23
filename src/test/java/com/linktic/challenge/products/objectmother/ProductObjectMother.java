@@ -1,5 +1,7 @@
 package com.linktic.challenge.products.objectmother;
 
+import com.linktic.challenge.products.application.dto.CreateProductDto;
+import com.linktic.challenge.products.application.dto.ProductDto;
 import com.linktic.challenge.products.domain.model.*;
 
 import java.math.BigDecimal;
@@ -79,6 +81,116 @@ public class ProductObjectMother {
                 new ProductCategory("Computadoras"),
                 new ProductBrand("TechMaster"),
                 new ProductSpecifications(specs)
+        );
+    }
+
+    public static CreateProductDto validCreateProductDto() {
+        return new CreateProductDto(
+                "Smartphone Galaxy XZ",
+                "https://example.com/galaxy-xz.jpg",
+                "Smartphone flagship con cámara profesional",
+                new BigDecimal("899.99"),
+                "USD",
+                4.7,
+                "Electrónica",
+                "TechNova",
+                Map.of(
+                        "pantalla", "6.5 pulgadas AMOLED",
+                        "procesador", "Snapdragon 8 Gen 2",
+                        "memoria", "256GB"
+                )
+        );
+    }
+
+    public static CreateProductDto createProductDtoWithInvalidName() {
+        return new CreateProductDto(
+                "", // Nombre inválido
+                "https://example.com/image.jpg",
+                "Valid description",
+                new BigDecimal("100.00"),
+                "USD",
+                4.5,
+                "Electronics",
+                "Brand",
+                Map.of("key", "value")
+        );
+    }
+
+    public static CreateProductDto createProductDtoWithInvalidImageUrl() {
+        return new CreateProductDto(
+                "Valid Product Name",
+                "invalid-url", // URL inválida
+                "Valid description",
+                new BigDecimal("100.00"),
+                "USD",
+                4.5,
+                "Electronics",
+                "Brand",
+                Map.of("key", "value")
+        );
+    }
+
+    public static CreateProductDto createProductDtoWithNegativePrice() {
+        return new CreateProductDto(
+                "Valid Product Name",
+                "https://example.com/image.jpg",
+                "Valid description",
+                new BigDecimal("-1.00"), // Precio negativo
+                "USD",
+                4.5,
+                "Electronics",
+                "Brand",
+                Map.of("key", "value")
+        );
+    }
+
+    // ✅ Métodos para ProductDto
+    public static ProductDto validProductDto() {
+        return new ProductDto(
+                "prod001",
+                "Smartphone Galaxy XZ",
+                "https://example.com/galaxy-xz.jpg",
+                "Smartphone flagship con cámara profesional",
+                new BigDecimal("899.99"),
+                "USD",
+                4.7,
+                "Electrónica",
+                "TechNova",
+                Map.of(
+                        "pantalla", "6.5 pulgadas AMOLED",
+                        "procesador", "Snapdragon 8 Gen 2",
+                        "memoria", "256GB"
+                )
+        );
+    }
+
+    public static ProductDto productDtoWithInvalidId() {
+        return new ProductDto(
+                "", // ID inválido
+                "Valid Product Name",
+                "https://example.com/image.jpg",
+                "Valid description",
+                new BigDecimal("100.00"),
+                "USD",
+                4.5,
+                "Electronics",
+                "Brand",
+                Map.of("key", "value")
+        );
+    }
+
+    public static ProductDto productDtoWithOutOfRangeRating() {
+        return new ProductDto(
+                "prod001",
+                "Valid Product Name",
+                "https://example.com/image.jpg",
+                "Valid description",
+                new BigDecimal("100.00"),
+                "USD",
+                5.1, // Rating fuera de rango
+                "Electronics",
+                "Brand",
+                Map.of("key", "value")
         );
     }
 }
