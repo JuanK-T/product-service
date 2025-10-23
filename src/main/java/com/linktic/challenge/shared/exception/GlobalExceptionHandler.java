@@ -1,96 +1,200 @@
 package com.linktic.challenge.shared.exception;
 
+import com.linktic.challenge.shared.response.ErrorDetail;
 import com.linktic.challenge.shared.response.StandardResponse;
 import com.linktic.challenge.shared.util.StandardResponses;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public StandardResponse<Object> badRequest(MethodArgumentNotValidException ex) {
-        var fields = ex.getBindingResult().getFieldErrors().stream()
-                .map(fe -> StandardResponses.errorDetail("VALIDATION_ERROR",
-                        "Campo '%s': %s".formatted(fe.getField(), fe.getDefaultMessage()),
-                        fe.getObjectName()))
-                .toList();
-
-        return StandardResponses.errorResponse(
-                HttpStatus.BAD_REQUEST.toString(),
-                "Error de validación en los datos de entrada",
-                fields
-        );
-    }
-
-    @ExceptionHandler(NoResourceFoundException.class)
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    public StandardResponse<Object> notFound(NoResourceFoundException ex) {
-
-        var ed = StandardResponses.errorDetail("RESOURCE_NOT_FOUND",
-                ex.getMessage(), null);
-
-        return StandardResponses.errorResponse(
-                HttpStatus.NOT_FOUND.toString(),
-                "Recurso no encontrado",
-                List.of(ed)
-        );
-    }
+    // ========== EXCEPCIONES DE SPRING WEB ==========
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
-    public StandardResponse<Object> methodNotSupported(HttpRequestMethodNotSupportedException ex,
-                                                       HttpServletResponse response) {
-        // 1) Evita NPE guardando en una variable
-        Set<HttpMethod> methods = ex.getSupportedHttpMethods();
+    public ResponseEntity<StandardResponse<Object>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        log.warn("Método HTTP no soportado: {} para esta URL", ex.getMethod());
 
-        String supportedMethods = (methods == null || methods.isEmpty())
-                ? "No especificados"
-                : methods.stream().map(HttpMethod::name).collect(Collectors.joining(", "));
-
-        // 2) (Opcional pero recomendable) agrega el header Allow como dicta HTTP 405
-        if (methods != null && !methods.isEmpty()) {
-            response.setHeader("Allow", methods.stream().map(HttpMethod::name).collect(Collectors.joining(", ")));
-        }
-
-        var errorDetail = StandardResponses.errorDetail(
+        ErrorDetail errorDetail = StandardResponses.errorDetail(
                 "METHOD_NOT_ALLOWED",
-                String.format("Método HTTP '%s' no soportado para este endpoint. Métodos soportados: %s",
-                        ex.getMethod(), supportedMethods),
-                null
+                "Método no permitido",
+                String.format("El método %s no está soportado para esta operación", ex.getMethod())
         );
 
-        return StandardResponses.errorResponse(
-                HttpStatus.METHOD_NOT_ALLOWED.toString(),
-                "Método HTTP no permitido",
+        StandardResponse<Object> response = StandardResponses.errorResponse(
+                String.valueOf(HttpStatus.METHOD_NOT_ALLOWED.value()),
+                "Operación no permitida",
                 List.of(errorDetail)
         );
+
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(response);
     }
 
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<StandardResponse<Object>> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+        log.warn("Cuerpo de request no legible: {}", ex.getMessage());
+
+        ErrorDetail errorDetail = StandardResponses.errorDetail(
+                "INVALID_JSON",
+                "JSON inválido",
+                "El cuerpo de la solicitud contiene JSON mal formado o incompleto"
+        );
+
+        StandardResponse<Object> response = StandardResponses.errorResponse(
+                String.valueOf(HttpStatus.BAD_REQUEST.value()),
+                "Formato de datos inválido",
+                List.of(errorDetail)
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<StandardResponse<Object>> handleMissingParameter(MissingServletRequestParameterException ex) {
+        log.warn("Parámetro requerido faltante: {}", ex.getParameterName());
+
+        ErrorDetail errorDetail = StandardResponses.errorDetail(
+                "MISSING_PARAMETER",
+                "Parámetro requerido faltante",
+                String.format("El parámetro '%s' es requerido", ex.getParameterName())
+        );
+
+        StandardResponse<Object> response = StandardResponses.errorResponse(
+                String.valueOf(HttpStatus.BAD_REQUEST.value()),
+                "Faltan parámetros requeridos",
+                List.of(errorDetail)
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<StandardResponse<Object>> handleNoHandlerFound(NoHandlerFoundException ex) {
+        log.warn("Endpoint no encontrado: {} {}", ex.getHttpMethod(), ex.getRequestURL());
+
+        ErrorDetail errorDetail = StandardResponses.errorDetail(
+                "ENDPOINT_NOT_FOUND",
+                "Endpoint no encontrado",
+                String.format("La ruta %s no existe", ex.getRequestURL())
+        );
+
+        StandardResponse<Object> response = StandardResponses.errorResponse(
+                String.valueOf(HttpStatus.NOT_FOUND.value()),
+                "Recurso no encontrado",
+                List.of(errorDetail)
+        );
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    // ========== EXCEPCIONES DE JAVA COMUNES ==========
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<StandardResponse<Object>> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("Argumento ilegal: {}", ex.getMessage());
+
+        ErrorDetail errorDetail = StandardResponses.errorDetail(
+                "ILLEGAL_ARGUMENT",
+                "Argumento inválido",
+                ex.getMessage()
+        );
+
+        StandardResponse<Object> response = StandardResponses.errorResponse(
+                String.valueOf(HttpStatus.BAD_REQUEST.value()),
+                "Parámetros de solicitud inválidos",
+                List.of(errorDetail)
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(NullPointerException.class)
+    public ResponseEntity<StandardResponse<Object>> handleNullPointer(NullPointerException ex) {
+        log.error("Null pointer exception: {}", ex.getMessage(), ex);
+
+        ErrorDetail errorDetail = StandardResponses.errorDetail(
+                "INTERNAL_ERROR",
+                "Error interno del servidor",
+                "Ocurrió un error inesperado procesando la solicitud"
+        );
+
+        StandardResponse<Object> response = StandardResponses.errorResponse(
+                String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+                "Error interno del sistema",
+                List.of(errorDetail)
+        );
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<StandardResponse<Object>> handleIllegalState(IllegalStateException ex) {
+        log.warn("Estado ilegal: {}", ex.getMessage());
+
+        ErrorDetail errorDetail = StandardResponses.errorDetail(
+                "ILLEGAL_STATE",
+                "Estado inválido del sistema",
+                ex.getMessage()
+        );
+
+        StandardResponse<Object> response = StandardResponses.errorResponse(
+                String.valueOf(HttpStatus.CONFLICT.value()),
+                "Operación no permitida en el estado actual",
+                List.of(errorDetail)
+        );
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+    }
+
+    // ========== EXCEPCIÓN GENÉRICA ==========
 
     @ExceptionHandler(Exception.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public StandardResponse<Object> generic(Exception ex) {
-        log.error("Unexpected error", ex);
+    public ResponseEntity<StandardResponse<Object>> handleGenericException(Exception ex) {
+        log.error("Excepción no manejada: {}", ex.getMessage(), ex);
 
-        return StandardResponses.errorResponse(
-                HttpStatus.INTERNAL_SERVER_ERROR.toString(),
-                "Error interno del servidor",
-                List.of()
+        ErrorDetail errorDetail = StandardResponses.errorDetail(
+                "UNEXPECTED_ERROR",
+                "Error inesperado",
+                "Ocurrió un error inesperado en el servidor"
         );
+
+        StandardResponse<Object> response = StandardResponses.errorResponse(
+                String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+                "Error interno del servidor",
+                List.of(errorDetail)
+        );
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
+    // ========== EXCEPCIONES DE BASE DE DATOS ==========
+
+    @ExceptionHandler(org.springframework.dao.DataAccessException.class)
+    public ResponseEntity<StandardResponse<Object>> handleDataAccessException(org.springframework.dao.DataAccessException ex) {
+        log.error("Error de acceso a datos: {}", ex.getMessage(), ex);
+
+        ErrorDetail errorDetail = StandardResponses.errorDetail(
+                "DATABASE_ERROR",
+                "Error de base de datos",
+                "Ocurrió un error al acceder a los datos"
+        );
+
+        StandardResponse<Object> response = StandardResponses.errorResponse(
+                String.valueOf(HttpStatus.INTERNAL_SERVER_ERROR.value()),
+                "Error en el almacenamiento de datos",
+                List.of(errorDetail)
+        );
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 }
